@@ -19,6 +19,18 @@ DEVPATH=="/devices/uprobe/*", GOTO="vpd_end"
 DEVPATH=="/devices/kprobe/*", GOTO="vpd_end"
 DEVPATH=="/devices/rbd/*", GOTO="vpd_end"
 
+SUBSYSTEM=="scsi_device", GOTO="vpd_update"
+SUBSYSTEM=="scsi_host", GOTO="vpd_update"
+# Don't generate extra events, we have one for the scsi_device already
+# This rule also skips SCSI block device uevents
+# (but the corresponding scsi_device will have triggered vpdupdate).
+SUBSYSTEMS=="scsi*", GOTO="vpd_end"
+
+# virtual NVMe devices (NVMeoF) are skipped because of the rule above
+SUBSYSTEM=="nvme", GOTO="vpd_update"
+SUBSYSTEM=="nvme-subsystem", GOTO="vpd_update"
+SUBSYSTEMS=="nvme*", GOTO="vpd_end"
+
 LABEL="vpd_update"
 RUN+="/bin/touch /run/run.vpdupdate"
 LABEL="vpd_end"
