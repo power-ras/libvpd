@@ -1,1 +1,19 @@
-KERNELS=="*", ACTION=="*", DEVPATH=="/devices/*", RUN+="/bin/touch /run/run.vpdupdate"
+DEVPATH!="/devices/*", GOTO="vpd_end"
+# See SysFSTreeCollector::filterDevicePath()
+DEVPATH=="/devices/virtual/*", GOTO="vpd_end"
+DEVPATH=="/devices/system/*", GOTO="vpd_end"
+DEVPATH=="/devices/cpu/*", GOTO="vpd_end"
+DEVPATH=="/devices/breakpoint/*", GOTO="vpd_end"
+DEVPATH=="/devices/tracepoint/*", GOTO="vpd_end"
+DEVPATH=="/devices/software/*", GOTO="vpd_end"
+
+# See SysFSTreeCollector::filterDevice()
+ENV{DEVTYPE}=="scsi_target", GOTO="vpd_end"
+SUBSYSTEM=="enclosure", GOTO="vpd_end"
+
+# See SysFSTreeCollector::isDevice()
+ENV{DEVTYPE}=="partition", GOTO="vpd_end"
+
+LABEL="vpd_update"
+RUN+="/bin/touch /run/run.vpdupdate"
+LABEL="vpd_end"
