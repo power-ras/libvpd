@@ -14,6 +14,11 @@ SUBSYSTEM=="enclosure", GOTO="vpd_end"
 # See SysFSTreeCollector::isDevice()
 ENV{DEVTYPE}=="partition", GOTO="vpd_end"
 
+# More devices that aren't covered by VPD
+DEVPATH=="/devices/uprobe/*", GOTO="vpd_end"
+DEVPATH=="/devices/kprobe/*", GOTO="vpd_end"
+DEVPATH=="/devices/rbd/*", GOTO="vpd_end"
+
 LABEL="vpd_update"
 RUN+="/bin/touch /run/run.vpdupdate"
 LABEL="vpd_end"
