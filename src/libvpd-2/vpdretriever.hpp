@@ -58,8 +58,7 @@ namespace lsvpd
 			 * @param dbFileName
 			 *   The file name for the VPD database.
 			 */
-			VpdRetriever( string envDir, string dbFileName )
-				throw( VpdException& );
+			VpdRetriever( string envDir, string dbFileName );
 			
 			/**
 			 * Builds A VpdRetriever object that can be used for reading the
@@ -70,8 +69,7 @@ namespace lsvpd
 			 * this constructor, there were serious underlying issues that
 			 * are not recoverable.  Uses the default dir and filename
 			 */
-			VpdRetriever( )
-				throw( VpdException& );
+			VpdRetriever( );
 			~VpdRetriever( );
 
 			/**

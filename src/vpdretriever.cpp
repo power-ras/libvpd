@@ -47,7 +47,7 @@ namespace lsvpd
 	const string VpdRetriever::UDEV_NOTIFY_FILE ( "/run/run.vpdupdate" );
 
 	VpdRetriever::VpdRetriever( string envDir,
-		string dbFileName ) throw( VpdException& )
+		string dbFileName )
 	{
 		try {
 			db = new VpdDbEnv( envDir, dbFileName, true );
@@ -59,7 +59,7 @@ namespace lsvpd
 		}
 	}
 	
-	VpdRetriever::VpdRetriever( ) throw( VpdException& )
+	VpdRetriever::VpdRetriever( )
 	{
 		struct stat vpd_stat,udev_stat;
 		const string vpddb = VpdRetriever::DEFAULT_DIR + VpdRetriever::DEFAULT_FILE;
