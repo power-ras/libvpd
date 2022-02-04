@@ -50,10 +50,35 @@ namespace lsvpd
 	 */
 	class VpdDbEnv
 	{
-		private:
-			VpdDbEnv& operator=( const VpdDbEnv& rhs ) { return (*this); }
-			VpdDbEnv( const VpdDbEnv& copyMe );
+		public:
+			class UpdateLock {
+				protected:
+					friend VpdDbEnv;
+					bool mReadOnly;
+					string mDbFileName;
+					string mEnvDir;
+					string mDbPath;
+				private:
+					int lockfd;
 
+					UpdateLock( const UpdateLock& copyMe ) = delete;
+					UpdateLock& operator=( const UpdateLock& rhs ) = delete;
+
+					pid_t lockFileUpdate( bool blocking );
+					void unlockFileUpdate( void );
+				public:
+					static const string UPDATE_LOCK_SUFFIX;
+
+					UpdateLock( const string& envDir, const string& dbFileName,
+						bool readOnly );
+					~UpdateLock();
+			};
+		private:
+			VpdDbEnv& operator=( const VpdDbEnv& rhs ) = delete;
+			VpdDbEnv( const VpdDbEnv& copyMe ) = delete;
+			void initFromLock( void );
+
+			const UpdateLock &mUpdateLock;
 			string mDbFileName;
 			string mEnvDir;
 			string mDbPath;
@@ -64,9 +89,10 @@ namespace lsvpd
 			static const string TABLE_NAME;
 			static const string ID;
 			static const string DATA;
-			
+
 			VpdDbEnv( const string& envDir, const string& dbFileName,
 						bool readOnly );
+			VpdDbEnv( const VpdDbEnv::UpdateLock&);
 			~VpdDbEnv();
 
 			/**

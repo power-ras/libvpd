@@ -27,6 +27,7 @@
 
 #include <sstream>
 #include <cstring>
+#include <fcntl.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -36,47 +37,170 @@ using namespace::std;
 
 namespace lsvpd
 {
+	const string VpdDbEnv::UpdateLock::UPDATE_LOCK_SUFFIX( "-updatelock" );
 	const string VpdDbEnv::TABLE_NAME ( "components" );
 	const string VpdDbEnv::ID         ( "comp_id" );
 	const string VpdDbEnv::DATA       ( "comp_data" );
 
-	/*
-	 * The copy constructor is marked private but these things need to be
-	 * filled out to compile correctly.
-	 */
-	 VpdDbEnv::VpdDbEnv( const VpdDbEnv& copyMe ):
-		mDbFileName( copyMe.mDbFileName ), mEnvDir( copyMe.mEnvDir ),
-		mpVpdDb( NULL )
-		{ }
-
-	VpdDbEnv::VpdDbEnv( const string& envDir, const string& dbFileName,
-				bool readOnly = false ) :
-				mDbFileName( dbFileName ),
-				mEnvDir( envDir ),
-				mpVpdDb( NULL )
+	pid_t VpdDbEnv::UpdateLock::lockFileUpdate( bool blocking )
 	{
+		const string fname( mDbPath + UPDATE_LOCK_SUFFIX );
 		int rc;
-		Logger l;
-		ostringstream message;
+		struct flock fl = {
+			.l_type = F_WRLCK,
+			.l_whence = SEEK_SET,
+			.l_start = 0,
+			.l_len = 1,
+			.l_pid = -1,
+		};
 
+		if ( lockfd >= 0 )
+			return -EBUSY;
+
+		lockfd = open( fname.c_str( ), O_RDWR|O_CREAT, 0644 );
+		if ( lockfd < 0 )
+			return -errno;
+
+		rc = fcntl( lockfd, blocking ? F_SETLKW : F_SETLK, &fl );
+		if ( rc ) {
+			if ( ! blocking && ( errno == EACCES || errno == EAGAIN ) ) {
+				if ( ! fcntl ( lockfd, F_GETLK, &fl ) )
+					rc = fl.l_pid;
+			} else {
+				rc = -errno;
+			}
+			lockfd = -1;
+		}
+		return rc;
+	}
+
+	void VpdDbEnv::UpdateLock::unlockFileUpdate( void )
+	{
+		if ( lockfd > 0 ) {
+			close( lockfd );
+			lockfd = -1;
+		}
+	}
+
+	VpdDbEnv::UpdateLock::~UpdateLock()
+	{
+		unlockFileUpdate();
+	}
+
+	VpdDbEnv::UpdateLock::UpdateLock( const string& envDir, const string& dbFileName,
+			bool readOnly = false ):
+		mReadOnly( readOnly ),
+		mDbFileName( dbFileName ),
+		mEnvDir( envDir ),
+		lockfd( -1 )
+	{
 		struct stat st;
 		bool dbExists;
-		sqlite3_stmt *pstmt;
-		const char *out;
-		string async = "PRAGMA synchronous = OFF";
+		pid_t rc;
+		ostringstream message;
+		Logger l;
 
 		mDbPath = mEnvDir + "/" + mDbFileName;
 		dbExists = (stat( mDbPath.c_str( ), &st )) == 0;
 		if (readOnly) {
 			if (!dbExists) {
-				message << "DB requested for reading does not "
+				message << mDbPath << ": DB requested for reading does not "
 					"exist (" << errno << ":" <<
 					strerror(errno) << ")." << endl;
 				goto CON_ERR;
 			}
 		}
+		rc = lockFileUpdate( false );
+		while ( rc > 0 ) {
+			ostringstream message;
 
-		rc = sqlite3_open( mDbPath.c_str( ), &mpVpdDb );
+			message << mDbPath << ": locked by another process (" << rc << "), waiting ..." << endl;
+			rc = lockFileUpdate( true );
+			l.log( message.str( ), LOG_INFO );
+		}
+		if ( rc < 0 ) {
+			ostringstream message;
+
+			message << mDbPath << ": cannot lock (" << strerror( -rc ) << ")." << endl;
+			l.log( message.str( ), LOG_ERR );
+		}
+		return;
+CON_ERR:
+		l.log( message.str( ), LOG_ERR );
+		VpdException ve( message.str( ) );
+		throw ve;
+	}
+
+	static int SQLiteBusyHandler( void * user_data , int number_of_calls )
+	{
+		sqlite3 *mpVpdDb = (sqlite3 *)user_data;
+		ostringstream message;
+		Logger l;
+
+		message << "SQLite database busy, waiting... " <<
+			sqlite3_errmsg( mpVpdDb ) << endl;
+		l.log( message.str( ), LOG_WARNING );
+		sleep( number_of_calls );
+
+		return 1; /* keep trying */
+	}
+
+	VpdDbEnv::VpdDbEnv( const string& envDir, const string& dbFileName,
+				bool readOnly = false ) :
+		mUpdateLock( *new UpdateLock(envDir, dbFileName, readOnly )),
+		mDbFileName( dbFileName ),
+		mEnvDir( envDir ),
+		mpVpdDb( NULL )
+	{
+		initFromLock();
+	}
+
+	VpdDbEnv::VpdDbEnv( const VpdDbEnv::UpdateLock& lock ):
+		mUpdateLock( lock ),
+		mDbFileName( mUpdateLock.mDbFileName ),
+		mEnvDir( mUpdateLock.mEnvDir ),
+		mpVpdDb( NULL )
+	{
+		initFromLock();
+	}
+
+	void VpdDbEnv::initFromLock( void )
+	{
+		int rc;
+		Logger l;
+		ostringstream message;
+		struct stat st;
+		bool dbExists;
+		bool readOnly = mUpdateLock.mReadOnly;
+		sqlite3_stmt *pstmt;
+		const char *out;
+		string async = "PRAGMA synchronous = OFF";
+
+		mDbPath = mUpdateLock.mDbPath;
+		dbExists = (stat( mDbPath.c_str( ), &st )) == 0;
+
+		for( unsigned int seconds = 1;; seconds++ ) {
+			rc = sqlite3_open_v2( mDbPath.c_str( ), &mpVpdDb,
+					readOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+					NULL );
+			if (rc == SQLITE_BUSY) {
+				ostringstream message;
+
+				message << "SQLite database busy, waiting... " <<
+					sqlite3_errmsg( mpVpdDb ) << endl;
+				l.log( message.str( ), LOG_WARNING );
+				sleep( seconds );
+			} else {
+				break;
+			}
+		}
+		if( rc != SQLITE_OK )
+		{
+			message << "SQLite Error " << rc << ": " <<
+				sqlite3_errmsg( mpVpdDb ) << endl;
+			goto CON_ERR;
+		}
+		rc = sqlite3_busy_handler( mpVpdDb, SQLiteBusyHandler, (void *)mpVpdDb );
 		if( rc != SQLITE_OK )
 		{
 			message << "SQLITE Error " << rc << ": " <<
@@ -135,6 +259,7 @@ CON_ERR:
 				sqlite3_errmsg( mpVpdDb ) << endl;
 			l.log( message.str( ), LOG_ERR );
 		}
+		delete &mUpdateLock;
 	}
 
 	Component* VpdDbEnv::fetch( const string& deviceID )

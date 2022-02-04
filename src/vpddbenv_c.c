@@ -23,9 +23,21 @@
 
 #include <libvpd-2/vpddbenv.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #define DATA_BUFFER_SIZE	12288
 #define FULL_PATH_SIZE		(MAX_NAME_LENGTH * 2 + 2)
+
+	static int lsvpd_busy_handler( void * user_data , int number_of_calls )
+	{
+		sqlite3 *mpVpdDb = (sqlite3 *)user_data;
+
+		fprintf( stderr, "sqlite database busy, waiting... '%s'\n",
+				sqlite3_errmsg( mpVpdDb ) );
+		sleep( number_of_calls );
+
+		return 1; /* keep trying */
+	}
 
 struct vpddbenv * new_vpddbenv( const char *dir, const char *file )
 {
@@ -54,13 +66,26 @@ struct vpddbenv * new_vpddbenv( const char *dir, const char *file )
 			FULL_PATH_SIZE )
 		snprintf( ret->fullPath, FULL_PATH_SIZE,
 				"%s/%s", ret->envDir, ret->dbFileName );
-	
-	rc = sqlite3_open( ret->fullPath, &(ret->db) );
+
+	for( unsigned int seconds = 1;; seconds++ ) {
+		rc = sqlite3_open( ret->fullPath, &(ret->db) );
+		if (rc == SQLITE_BUSY) {
+			fprintf( stderr, "sqlite database busy, waiting... '%s'\n",
+					sqlite3_errmsg( ret->db ) );
+			sleep( seconds );
+		} else {
+			break;
+		}
+	}
 	if( rc != SQLITE_OK )
 		goto newerr;
-	
+
+	rc = sqlite3_busy_handler( ret->db, lsvpd_busy_handler, (void *)ret->db );
+	if( rc != SQLITE_OK )
+		goto newerr;
+
 	return ret;
-	
+
 newerr:
 	fprintf( stderr, "sqlite db error '%s'\n", sqlite3_errmsg( ret->db ) );
 	free_vpddbenv( ret );
