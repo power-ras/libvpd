@@ -52,9 +52,9 @@ C_VERSION=@GENERIC_C_LIBRARY_VERSION@
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libvpd-2.pc libvpd_cxx-2.pc
 
-libvpd_cxx_la_LDFLAGS = -module -lstdc++ -version-number \
+libvpd_cxx_la_LDFLAGS = -module -lstdc++ -version-info \
 	$(CXX_VERSION) -release @GENERIC_RELEASE@
-libvpd_la_LDFLAGS = -module -version-number \
+libvpd_la_LDFLAGS = -module -version-info \
 	$(C_VERSION) -release @GENERIC_RELEASE@
 
 AM_CXXFLAGS = -DDEST_DIR='"${exec_prefix}"'
