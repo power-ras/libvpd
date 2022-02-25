@@ -64,6 +64,10 @@ Contains header files for building with libvpd.
 %{_libdir}/pkgconfig/libvpd_cxx-2.pc
 
 %changelog
+* Thu Feb 25 2022 Mahesh Salgaonkar <mahesh@linux.ibm.com> 2.2.9
+- VpdDbEnv: Add locking fo the database file.
+- Update libtool version info
+
 * Fri Nov 06 2020 Vasant Hegde <hegdevasant@linux.vnet.ibm.com> 2.2.8
 - VpdDbEnv: Make the sqlite operations asynchronous
 
