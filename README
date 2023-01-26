@@ -50,6 +50,10 @@ To build a tarball to feed to rpmbuild, do
 
 $ make dist-gzip
 
+Next, move your source/zipped tarball file into SOURCES directory
+
+$ mv libvpd-<version>.tar.gz /root/rpmbuild/SOURCES/
+
 As an example, we use a command similar to the following:
 
 $ rpmbuild -ba [--target=ppc/ppc64] <path-to-spec-file>
