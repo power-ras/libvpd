@@ -937,7 +937,6 @@ lderr:
 		d->ac = ac;
 		d->humanName = humanName;
 		d->setValue( val, lvl, __FILE__, __LINE__ );
-#if 0
 
 		/*
 		 * There can be multiple records with the 'CL' key.
@@ -952,7 +951,6 @@ lderr:
 			if( (*i)->ac == ac )
 				return; //Failed to add - already present
 		}
-#endif
 
 		mDeviceSpecific.push_back( d );
 	}
