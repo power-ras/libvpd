@@ -1,6 +1,7 @@
 language: cpp
 
-os: linux-ppc64le
+arch: ppc64le
+group: power-focal
 
 sudo: required
 
