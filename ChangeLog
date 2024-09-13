@@ -1,3 +1,8 @@
+2.2.10
+- Fix displaying duplicate VPD details
+- Update travis build to use fedora37 and Ubuntu23.10
+- Update travis build to use v3 supported tags
+
 2.2.9
 - VpdDbEnv: Add locking fo the database file.
 - Update libtool version info
