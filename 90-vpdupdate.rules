@@ -31,6 +31,35 @@ SUBSYSTEM=="nvme", GOTO="vpd_update"
 SUBSYSTEM=="nvme-subsystem", GOTO="vpd_update"
 SUBSYSTEMS=="nvme*", GOTO="vpd_end"
 
+# Check for Spyre PCI devices using PCI_ID
+SUBSYSTEM=="pci", ACTION=="add", ENV{PCI_ID}=="1014:06A7", GOTO="spyre_vpd_update"
+SUBSYSTEM=="pci", ACTION=="add", ENV{PCI_ID}=="1014:06A8", GOTO="spyre_vpd_update"
+SUBSYSTEM=="pci", ACTION=="remove", ENV{PCI_ID}=="1014:06A7", GOTO="spyre_vpd_update"
+SUBSYSTEM=="pci", ACTION=="remove", ENV{PCI_ID}=="1014:06A8", GOTO="spyre_vpd_update"
+GOTO="vpd_end"
+
+LABEL="spyre_vpd_update"
+# Log device info
+RUN+="/usr/bin/logger -t vpdupdate 'Processing Spyre device - action=$env{ACTION} subsystem=$env{SUBSYSTEM} driver=$env{DRIVER} kernel=$kernel PCI_ID=$env{PCI_ID} devpath=$devpath'"
+
+# Get system status - always exit 1 to capture output
+PROGRAM="/bin/sh -c 'systemctl is-system-running 2>&1 || true'"
+RUN+="/usr/bin/logger -t vpdupdate 'System status: %c'"
+
+# Check if RESULT is running or degraded
+RESULT=="running", GOTO="do_spyre_vpdupdate"
+RESULT=="degraded", GOTO="do_spyre_vpdupdate"
+
+# System not ready - skip vpdupdate
+RUN+="/usr/bin/logger -t vpdupdate 'Skipping vpdupdate - system not ready (status: %c)'"
+GOTO="vpd_end"
+
+LABEL="do_spyre_vpdupdate"
+RUN+="/usr/bin/logger -t vpdupdate 'System is ready - running vpdupdate'"
+RUN+="/usr/sbin/vpdupdate"
+RUN+="/usr/bin/logger -t vpdupdate 'Completed vpdupdate for Spyre device'"
+GOTO="vpd_end"
+
 LABEL="vpd_update"
 RUN+="/bin/touch /run/run.vpdupdate"
 LABEL="vpd_end"
