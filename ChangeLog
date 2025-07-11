@@ -1,3 +1,7 @@
+2.2.11
+- udev: Add Spyre PCI hotplug support with system readiness check
+- Add travis support for Ubuntu 24.10
+
 2.2.10
 - Fix displaying duplicate VPD details
 - Update travis build to use fedora37 and Ubuntu23.10

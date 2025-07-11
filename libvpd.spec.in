@@ -64,6 +64,10 @@ Contains header files for building with libvpd.
 %{_libdir}/pkgconfig/libvpd_cxx-2.pc
 
 %changelog
+* Fri Jul 11 2025 Mahesh Salgaonkar <mahesh@linux.ibm.com> 2.2.11
+- udev: Add Spyre PCI hotplug support with system readiness check
+- libvpd/travis: Switch from Ubuntu 23.10 to Ubuntu 24.10
+
 * Fri Sep 13 2024 Mahesh Salgaonkar <mahesh@linux.ibm.com> 2.2.10
 - Fix displaying duplicate VPD details
 - Update travis build to use fedora37 and Ubuntu23.10
