@@ -31,6 +31,9 @@ SUBSYSTEM=="nvme", GOTO="vpd_update"
 SUBSYSTEM=="nvme-subsystem", GOTO="vpd_update"
 SUBSYSTEMS=="nvme*", GOTO="vpd_end"
 
+# Ethernet devices (virtual interfaces are skipped above)
+SUBSYSTEM=="net", ACTION=="add|remove", GOTO="vpd_update"
+
 # Check for Spyre PCI devices using PCI_ID
 SUBSYSTEM=="pci", ACTION=="add", ENV{PCI_ID}=="1014:06A7", GOTO="spyre_vpd_update"
 SUBSYSTEM=="pci", ACTION=="add", ENV{PCI_ID}=="1014:06A8", GOTO="spyre_vpd_update"
